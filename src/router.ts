@@ -11,6 +11,11 @@ export default new Router({
       name: 'home',
       component: Home
     },
+      {
+          path: '/triangle',
+          name: 'triangle',
+          component: () => import(/* webpackChunkName: "triangle" */ './views/Triangle.vue')
+      },
     {
       path: '/about',
       name: 'about',
