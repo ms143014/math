@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,minimum-scale=1,maximum-scale=1,initial-scale=1,user-scalable=no" />
+<title>三角形角度计算</title>
+<style type="text/css">
+html, body, div, canvas{
+	margin: 0px;
+}
+#app{
+	position: relative;
+}
+#app .controller{
+	position: absolute;
+	list-style-type: none;
+}
+#app .controller input{ 
+	padding: 0;
+	border-radius: 0;
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	font-size: 1.4em; /*字体*/
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+#app .controller input:focus, #app .controller input:active{
+	outline: none; 
+}
+#app .reset-btn{
+	position: absolute;
+	right: 10px;
+    top: 5px;
+    color: black;
+}
+</style>
+<script type="text/javascript" src="./js/vue.js"></script>
+<script type="text/javascript">
+function LSUtils(){
+	
+}
+LSUtils.version = "2";
+LSUtils.init = function(){
+	var existsData = false;
+	for(var i=localStorage.length - 1 ; i >=0; i--){
+		const key = localStorage.key(i);
+		if(key === "MATH_TRI_VER"){
+			const value = localStorage.getItem(key);
+			if(value == LSUtils.version){
+				existsData = true;
+			}
+		}
+	}
+	if(!existsData){
+		localStorage.setItem('triBottom', 1);
+		localStorage.setItem('triRight', 1);
+		localStorage.setItem('subLength', 0);
+		localStorage.setItem('MATH_TRI_VER', LSUtils.version);
+	}
+}
+LSUtils.reset=function(){
+	localStorage.removeItem('triBottom');
+	localStorage.removeItem('triRight');
+	localStorage.removeItem('subLength');
+	localStorage.removeItem('MATH_TRI_VER');
+}
+LSUtils.setTriBottom=function(val){
+	localStorage.setItem('triBottom', val);
+}
+LSUtils.getTriBottom=function(val){
+	return parseFloat(localStorage.getItem('triBottom'));
+}
+LSUtils.setTriRight=function(val){
+	localStorage.setItem('triRight', val);
+}
+LSUtils.getTriRight=function(val){
+	return parseFloat(localStorage.getItem('triRight'));
+}
+LSUtils.setSubLength=function(val){
+	localStorage.setItem('subLength', val);
+}
+LSUtils.getSubLength=function(val){
+	return parseFloat(localStorage.getItem('subLength'));
+}
+window.LSUtils=LSUtils;
+window.onload = function(){
+	LSUtils.init();
+	var app = new Vue({
+		  el: '#app',
+		  data: {
+		    width: document.activeElement.clientWidth,
+		    height: document.activeElement.clientWidth,
+		    subLength: LSUtils.getSubLength(),
+		    triBottom: LSUtils.getTriBottom(),
+		    triRight: LSUtils.getTriRight(),
+            length3: 0, // 斜边
+		    degree: 0,
+		    clipEdge: 0 //等腰三角形斜边长度
+		  },
+		  mounted(){
+			  this.repaint();
+		  },
+		  methods:{
+			  getCanvasContext(){
+				  var canvas = this.$refs.cvs;
+				  return canvas.getContext('2d');
+			  },
+			  repaint(){
+				  var ctx = this.getCanvasContext();
+				  var {width, height, subLength, triBottom, triRight} = this;
+				  ctx.clearRect(0, 0, width, width); //清扫一下
+				  var baseY = .9*height;
+				  var baseWidth = .9*width - .1*width;
+				  //字体设置
+				  ctx.textAlign="center";
+				  ctx.font="26px Verdana";
+				  
+				  var oriPoint = {x: .1*width, y: baseY}; //三角形的左原点
+				  
+				  
+				  ctx.beginPath();
+				  ctx.strokeStyle = 'black';
+				  ctx.fillStyle='black';
+				  ctx.moveTo(oriPoint.x, oriPoint.y);
+				  ctx.lineTo(.9*width, baseY); //底线
+				  
+				  //底部长度文本
+				  ctx.fillText(this.triBottom, .5*this.width, .9*this.height + 20);
+				  
+				  
+				  ctx.lineTo(.9*width, baseY - this.triRight*baseWidth/this.triBottom); //按比例画出高
+				  ctx.fillText(this.triRight, .9*width, baseY - (this.triRight*baseWidth/this.triBottom)/2);
+				  
+				  ctx.lineTo(.1*width, baseY); // 返回原点
+
+
+				  ctx.stroke();//实际画出路径
+				  
+				  var degree = this.degree = Math.atan(this.triRight/this.triBottom)*180/Math.PI;
+				  var radius = width/10;
+				  //弧线
+				  ctx.arc(oriPoint.x, oriPoint.y, radius, 0, -Math.PI/180*degree, true);
+				  ctx.fillText(degree.toFixed(0)+'°', oriPoint.x+radius+20, oriPoint.y - 10);
+				  ctx.stroke();
+
+				  //画斜边
+                  {
+                      ctx.save();
+                      ctx.rotate(-Math.PI/180*degree);
+                      var offsetY = (Math.abs(Math.tan(Math.PI/180*degree) * (0.1 * width)) + 0.9 * width) * Math.cos(Math.PI/180*degree);
+                      this.length3 = Math.sqrt(Math.pow(this.triRight, 2) + Math.pow(this.triBottom, 2));
+                      ctx.fillText(this.length3.toFixed(2),  100 - 0.5*width, offsetY - 5);
+                  }
+
+
+                  ctx.restore();
+				  
+				  this.clipEdge = 0; //重置一下
+				  //短边必须小于任何一边
+				  if(parseFloat(subLength) > 0 && parseFloat(triBottom) >= parseFloat(subLength)){
+					  var offsetAx = this.toPx(subLength);
+					  var offsetAy = 0;
+					  var offsetBx = this.toPx(subLength*Math.cos(Math.PI/180*degree));
+					  var offsetBy = this.toPx(subLength*Math.sin(Math.PI/180*degree));
+					  const pointAx = oriPoint.x + offsetAx;	//A点x
+					  const pointAy = oriPoint.y;				//A点y
+					  const pointBx = oriPoint.x + offsetBx;	//B点x
+					  const pointBy = oriPoint.y - offsetBy;	//B点y
+					  
+					  ctx.beginPath();
+					  ctx.fillStyle="red";
+					  ctx.arc(pointAx, pointAy, 3, 0, 2*Math.PI, true);
+					  
+					  ctx.arc(pointBx, pointBy, 3, 0, 2*Math.PI, true);
+					  
+					  ctx.fill();
+					  
+					  ctx.beginPath();
+					  ctx.strokeStyle = 'red';
+					  ctx.lineWidth=1;
+					  ctx.moveTo(pointAx, pointAy);
+					  ctx.lineTo(pointBx, pointBy); //底线
+					  ctx.stroke();
+					  
+					  const clipEdge = this.clipEdge = subLength*Math.sin(Math.PI/180*degree/2) * 2; //等腰三角形 - 斜边
+					  ctx.fillText(clipEdge.toFixed(2), (pointAx + pointBx)/2, (pointAy + pointBy)/2);
+					  
+				  }
+			  },
+			  toPx(realLength){
+				  var {width, height, triBottom} = this;
+				  var baseWidth = .9*width - .1*width;
+				  return  baseWidth*realLength/triBottom;
+			  },
+			  reset(){
+				  LSUtils.reset();
+				  window.location.reload();
+			  },
+			  downloadCanvas(){
+				  var canvas = this.$refs.cvs;
+				  //创建一个副本作为导出图片
+				  const cpCanvas = document.createElement('canvas');
+				  cpCanvas.width = canvas.width;
+				  cpCanvas.height = canvas.height;
+				  const cpCtx = cpCanvas.getContext('2d');
+				  cpCtx.fillStyle="white";
+				  cpCtx.fillRect(0,0,canvas.width, canvas.height);
+				  cpCtx.fillStyle="black"; //还原
+				  cpCtx.drawImage(canvas, 0, 0);
+				  const fontSize = 20;
+				  cpCtx.font=`${fontSize}px Verdana`;
+				  cpCtx.fillText(`底:${this.triBottom} ∠${this.degree.toFixed(2)}°`, 10, 30 + fontSize*0);
+                  cpCtx.fillText('高:'+this.triRight, 10, 30 + fontSize*1);
+                  cpCtx.fillText('斜边:'+this.length3.toFixed(2), 10, 30 + fontSize*2);
+				  cpCtx.fillText(`截:${this.subLength} 截红色:${this.clipEdge.toFixed(2)}`, 10, 30 + fontSize*3);
+				  //this.$refs.imageOutput.setAttribute('src', cpCanvas.toDataURL('image/png'));
+
+
+				  const a = document.createElementNS('http://www.w3.org/1999/xhtml', 'a');
+				  a.setAttribute('href', cpCanvas.toDataURL('image/png')/*.replace("image/png", "image/octet-stream")*/);
+				  a.setAttribute('download', new Date().getTime()+'.png');
+				  const e = document.createEvent('MouseEvents');
+				  e.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+				  a.dispatchEvent(e);
+				  
+			  },
+			  inputFocus(e){
+				e.target.style.transform="scale(2)";
+			  },
+			  inputBlur(e){
+				e.target.style.transform="";
+			  }
+		  },
+		  watch:{
+			  triBottom(newVal, oldVal){
+				  if(newVal > 0){
+					  LSUtils.setTriBottom(newVal);
+					  this.repaint();
+				  }
+			  },
+			  triRight(newVal, oldVal){
+				  if(newVal > 0){
+					  LSUtils.setTriRight(newVal);
+					  this.repaint();
+				  }
+			  },
+			  subLength(newVal){
+				  LSUtils.setSubLength(newVal);
+					this.repaint();
+			  }
+		  },
+            computed:{
+                abc(){
+                    return (this.triBottom|0).toFixed(2);
+                }
+            }
+		});
+
+}
+</script>
+</head>
+<body>
+	<section id="app">
+		<ul class="controller">
+			<li>底:<input type="number" v-model.number="triBottom" min="0.01" max="999.99"/>
+				<template v-if="degree>0">∠{{degree.toFixed(2)}}°</template>
+			</li>
+			<li>高:<input type="number" v-model.number="triRight" min="0.01" max="999.99"/></li>
+            <li>斜: {{length3.toFixed(2)}}<sup>2</sup> = {{(triBottom||0).toFixed(2)}}<sup>2</sup> + {{(triRight||0).toFixed(2)}}<sup>2</sup></li>
+			<li>截:<input type="number" v-model.number="subLength" min="0.01" max="999.99"/>
+				<template v-if="clipEdge>0">截红色: {{clipEdge.toFixed(2)}}</template>
+			</li>
+			<li><button @click="downloadCanvas">保存到相册</button></li>
+		</ul>
+		<a class="reset-btn" href="javascript: void(0)" @click="reset">重置</a>
+		<canvas ref="cvs" :width="width" :height="height" style="border-bottom: 1px solid;"></canvas>
+		<img class="image-output" ref="imageOutput"/>
+	</section>
+</body>
+</html>

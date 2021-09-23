@@ -1,3 +1,3 @@
 module.exports = {
-    publicPath: '/math/dist'
+    //publicPath: '/math/dist'
 }
